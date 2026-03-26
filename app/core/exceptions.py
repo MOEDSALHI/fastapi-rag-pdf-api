@@ -8,3 +8,7 @@ class InvalidFileTypeError(AppException):
 
 class PDFExtractionError(AppException):
     """Raised when text extraction from a PDF fails."""
+
+
+class EmbeddingGenerationError(AppException):
+    """Raised when embedding generation fails."""
