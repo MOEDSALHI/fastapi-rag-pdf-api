@@ -12,3 +12,7 @@ class PDFExtractionError(AppException):
 
 class EmbeddingGenerationError(AppException):
     """Raised when embedding generation fails."""
+
+
+class LLMResponseGenerationError(AppException):
+    """Raised when answer generation with the chat model fails."""
