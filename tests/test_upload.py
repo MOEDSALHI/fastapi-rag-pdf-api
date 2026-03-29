@@ -3,7 +3,6 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.core.exceptions import (
-    EmbeddingGenerationError,
     PDFExtractionError,
     VectorStoreError,
 )
@@ -63,9 +62,7 @@ def test_upload_pdf_returns_400_for_non_pdf_file() -> None:
     )
 
     assert response.status_code == 400
-    assert response.json() == {
-        "detail": "Only PDF files are supported."
-    }
+    assert response.json() == {"detail": "Only PDF files are supported."}
 
 
 def test_upload_pdf_returns_422_when_pdf_has_no_extractable_text() -> None:

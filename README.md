@@ -4,30 +4,43 @@ API backend FastAPI permettant d’uploader un document PDF, d’en extraire le 
 
 ## Objectif du projet
 
-Ce projet a été conçu comme un démonstrateur backend moderne autour des usages LLM et RAG appliqués à des documents PDF.
+Ce projet a été construit pour monter en compétence de manière concrète sur plusieurs briques backend et GenAI modernes :
 
-L’application permet de :
+- FastAPI
+- traitement de documents PDF
+- chunking
+- embeddings OpenAI
+- recherche vectorielle avec FAISS
+- pipeline RAG de bout en bout
+- tests backend
+- dockerisation
+
+L’objectif n’était pas seulement de faire un POC, mais de comprendre et implémenter proprement chaque étape du pipeline.
+
+## Ce que le projet permet de faire
 
 - uploader un PDF texte natif
 - extraire le texte du document
-- découper le contenu en chunks
-- générer les embeddings des chunks avec OpenAI
+- découper le contenu en chunks avec overlap
+- générer les embeddings des chunks
 - indexer ces embeddings dans FAISS
-- retrouver les passages les plus pertinents pour une question utilisateur
-- générer une réponse contextualisée à partir du document
+- poser une question sur le document
+- retrouver les passages les plus pertinents
+- générer une réponse contextualisée via OpenAI
 
-## Fonctionnalités
+## Compétences travaillées
 
-- API FastAPI structurée par routes et services
-- endpoint `GET /health`
-- endpoint `POST /upload` pour indexer un PDF
-- endpoint `POST /ask` pour interroger le document indexé
-- extraction de texte PDF avec `pypdf`
-- chunking avec overlap
-- génération d’embeddings OpenAI
-- vector store local avec FAISS
-- persistance locale de l’index et des chunks
-- tests unitaires avec `pytest`
+Ce repo m’a permis de pratiquer concrètement :
+
+- conception d’API backend avec FastAPI
+- structuration d’un projet Python par couches (`routes`, `schemas`, `services`)
+- validation avec Pydantic
+- gestion d’erreurs métier
+- tests unitaires et tests de routes avec `pytest`
+- intégration des APIs OpenAI
+- implémentation d’un pipeline RAG simple et compréhensible
+- recherche sémantique locale avec FAISS
+- conteneurisation avec Docker
 
 ## Stack technique
 
@@ -41,8 +54,10 @@ L’application permet de :
 - FAISS CPU
 - NumPy
 - Pytest
+- Ruff
+- Docker
 
-## Architecture du projet
+## Architecture
 
 ```bash
 fastapi-rag-pdf-api/
@@ -74,6 +89,7 @@ fastapi-rag-pdf-api/
 ├── .gitignore
 ├── Dockerfile
 ├── README.md
+├── pyproject.toml
 └── requirements.txt
 ````
 
@@ -100,17 +116,13 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Créer le fichier `.env`
+### 4. Configurer les variables d’environnement
 
 ```bash
 cp .env.example .env
 ```
 
-Puis compléter avec une vraie clé OpenAI.
-
-## Variables d’environnement
-
-Exemple de fichier `.env` :
+Exemple :
 
 ```env
 OPENAI_API_KEY=your_openai_api_key
@@ -121,16 +133,17 @@ APP_NAME=FastAPI RAG PDF API
 APP_ENV=dev
 ```
 
-## Lancer l’application en local
+## Lancer l’application
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-Application disponible sur :
+Swagger UI :
 
-* API : `http://127.0.0.1:8000`
-* Swagger UI : `http://127.0.0.1:8000/docs`
+```bash
+http://127.0.0.1:8000/docs
+```
 
 ## Lancer les tests
 
@@ -138,21 +151,22 @@ Application disponible sur :
 pytest
 ```
 
-## Utilisation de l’API
+## Vérifier la qualité du code
 
-### Vérifier l’état de l’API
+```bash
+ruff check . --fix
+ruff format .
+```
+
+## Exemples d’utilisation
+
+### Healthcheck
 
 ```bash
 curl http://127.0.0.1:8000/health
 ```
 
-Réponse attendue :
-
-```json
-{"status":"ok"}
-```
-
-### Indexer un PDF
+### Upload et indexation d’un PDF
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/upload" \
@@ -161,21 +175,7 @@ curl -X POST "http://127.0.0.1:8000/upload" \
   -F "file=@sample.pdf"
 ```
 
-Exemple de réponse :
-
-```json
-{
-  "filename": "sample.pdf",
-  "content_type": "application/pdf",
-  "page_count": 3,
-  "extracted_text_length": 5421,
-  "chunk_count": 8,
-  "embedding_count": 8,
-  "status": "indexed"
-}
-```
-
-### Poser une question sur le document
+### Question sur le document
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/ask" \
@@ -187,69 +187,34 @@ curl -X POST "http://127.0.0.1:8000/ask" \
   }'
 ```
 
-Exemple de réponse :
+## Lancer avec Docker
 
-```json
-{
-  "question": "What is the monthly rent mentioned in the document?",
-  "answer": "The monthly rent mentioned in the document is 950 euros.",
-  "retrieved_chunks": [
-    "The monthly rent is set at 950 euros...",
-    "The lease term is 3 years...",
-    "The security deposit is two months..."
-  ]
-}
-```
-
-## Lancer le projet avec Docker
-
-### Build de l’image
+### Build
 
 ```bash
 docker build -t fastapi-rag-pdf-api .
 ```
 
-### Lancer le conteneur
+### Run
 
 ```bash
 docker run --rm -p 8000:8000 --env-file .env fastapi-rag-pdf-api
 ```
 
+### Run avec persistance locale de l’index
+
+```bash
+docker run --rm -p 8000:8000 \
+  --env-file .env \
+  -v $(pwd)/data:/app/data \
+  fastapi-rag-pdf-api
+```
+
 ## Limites actuelles
-
-Cette version du projet est volontairement simple et orientée démonstration.
-
-Limitations actuelles :
 
 * un seul document indexé à la fois
 * chaque nouvel upload remplace l’index précédent
 * pas de support OCR pour les PDF scannés
-* pas de gestion multi-documents
-* pas encore de métadonnées avancées sur les chunks
-* pas encore de citations par page ou score de similarité
-
-## Axes d’amélioration possibles
-
-* support multi-documents
-* ajout de métadonnées par chunk
-* support OCR pour PDF image
-* stockage persistant plus avancé
-* ajout de scores de similarité
-* ajout d’authentification
-* amélioration du prompt RAG
-* observabilité et logs enrichis
-
-## Pourquoi ce projet est intéressant
-
-Ce projet démontre plusieurs compétences backend et IA utiles en contexte professionnel :
-
-* structuration d’une API FastAPI
-* intégration de services LLM
-* pipeline RAG de bout en bout
-* traitement documentaire PDF
-* recherche sémantique avec FAISS
-* qualité de code avec tests automatisés
-
-## Statut
-
-Version MVP fonctionnelle, construite étape par étape dans une logique de progression backend + GenAI.
+* pas encore de métadonnées avancées par chunk
+* pas encore de citations par page
+* pas encore de support multi-documents
