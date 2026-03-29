@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from app.core.exceptions import (
     EmbeddingGenerationError,
     LLMResponseGenerationError,
+    VectorStoreError,
 )
 from app.main import app
 
@@ -133,3 +134,57 @@ def test_ask_returns_422_for_empty_question() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_ask_returns_500_when_no_relevant_chunks_are_found() -> None:
+    with (
+        patch(
+            "app.api.routes.ask.generate_embeddings",
+            return_value=[[0.1, 0.2, 0.3]],
+        ),
+        patch(
+            "app.api.routes.ask.load_faiss_index",
+            return_value="fake-index",
+        ),
+        patch(
+            "app.api.routes.ask.load_chunks",
+            return_value=["chunk 1", "chunk 2"],
+        ),
+        patch(
+            "app.api.routes.ask.search_similar_chunks",
+            return_value=[],
+        ),
+    ):
+        response = client.post(
+            "/ask",
+            json={"question": "Quel est le loyer ?"},
+        )
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": "No relevant chunks were found for the given question."
+    }
+
+
+def test_ask_returns_500_when_vector_store_loading_fails() -> None:
+    with (
+        patch(
+            "app.api.routes.ask.generate_embeddings",
+            return_value=[[0.1, 0.2, 0.3]],
+        ),
+        patch(
+            "app.api.routes.ask.load_faiss_index",
+            side_effect=VectorStoreError(
+                "An error occurred while loading the FAISS index from data/vector_store/index.faiss."
+            ),
+        ),
+    ):
+        response = client.post(
+            "/ask",
+            json={"question": "Quel est le loyer ?"},
+        )
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": "An error occurred while loading the FAISS index from data/vector_store/index.faiss."
+    }

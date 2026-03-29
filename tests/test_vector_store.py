@@ -1,7 +1,9 @@
+import json
 from pathlib import Path
 
 import pytest
 
+from app.core.exceptions import VectorStoreError
 from app.services.vector_store import (
     build_faiss_index,
     load_chunks,
@@ -93,3 +95,30 @@ def test_save_and_load_faiss_index(tmp_path: Path) -> None:
     loaded_index = load_faiss_index(path=file_path)
 
     assert loaded_index.ntotal == 2
+
+
+def test_build_faiss_index_raises_error_for_inconsistent_dimensions() -> None:
+    with pytest.raises(
+        ValueError,
+        match="all embedding vectors must have the same dimension.",
+    ):
+        build_faiss_index([[1.0, 0.0], [0.1]])
+
+
+def test_build_faiss_index_raises_error_for_empty_vectors() -> None:
+    with pytest.raises(
+        ValueError,
+        match="embedding vectors must not be empty.",
+    ):
+        build_faiss_index([[]])
+
+
+def test_load_chunks_raises_error_when_json_is_not_a_list(tmp_path: Path) -> None:
+    file_path = tmp_path / "chunks.json"
+    file_path.write_text(json.dumps({"chunk": "invalid"}), encoding="utf-8")
+
+    with pytest.raises(
+        VectorStoreError,
+        match="Chunks file content must be a list.",
+    ):
+        load_chunks(path=file_path)

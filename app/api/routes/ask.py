@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.core.exceptions import (
     EmbeddingGenerationError,
     LLMResponseGenerationError,
+    VectorStoreError,
 )
 from app.schemas.ask import AskRequest, AskResponse
 from app.services.embeddings import generate_embeddings
@@ -39,6 +40,11 @@ def ask_question(payload: AskRequest) -> AskResponse:
             top_k=payload.top_k,
         )
 
+        if not retrieved_chunks:
+            raise VectorStoreError(
+                "No relevant chunks were found for the given question."
+            )
+
         answer = generate_rag_answer(
             question=payload.question,
             context_chunks=retrieved_chunks,
@@ -53,9 +59,7 @@ def ask_question(payload: AskRequest) -> AskResponse:
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                "No indexed document was found. Upload and index a PDF first."
-            ),
+            detail="No indexed document was found. Upload and index a PDF first.",
         ) from exc
     except EmbeddingGenerationError as exc:
         raise HTTPException(
@@ -65,5 +69,10 @@ def ask_question(payload: AskRequest) -> AskResponse:
     except LLMResponseGenerationError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    except VectorStoreError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         ) from exc

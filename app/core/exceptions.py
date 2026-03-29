@@ -16,3 +16,11 @@ class EmbeddingGenerationError(AppException):
 
 class LLMResponseGenerationError(AppException):
     """Raised when answer generation with the chat model fails."""
+
+
+class VectorStoreError(AppException):
+    """Raised when vector store operations fail."""
+
+
+class DocumentProcessingError(AppException):
+    """Raised when a document cannot be processed into valid chunks or embeddings."""

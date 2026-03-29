@@ -1,6 +1,12 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from app.core.exceptions import InvalidFileTypeError, PDFExtractionError
+from app.core.exceptions import (
+    DocumentProcessingError,
+    EmbeddingGenerationError,
+    InvalidFileTypeError,
+    PDFExtractionError,
+    VectorStoreError,
+)
 from app.schemas.upload import UploadAndIndexResponse
 from app.services.chunking import chunk_text
 from app.services.embeddings import generate_embeddings
@@ -32,7 +38,23 @@ async def upload_pdf(file: UploadFile = File(...)) -> UploadAndIndexResponse:
 
         extracted_text, page_count = extract_text_from_pdf_bytes(file_bytes)
         chunks = chunk_text(extracted_text)
+
+        if not chunks:
+            raise DocumentProcessingError(
+                "No valid chunks could be generated from the extracted document text."
+            )
+
         embeddings = generate_embeddings(chunks)
+
+        if not embeddings:
+            raise EmbeddingGenerationError(
+                "No embeddings could be generated from the document chunks."
+            )
+
+        if len(chunks) != len(embeddings):
+            raise DocumentProcessingError(
+                "Mismatch between generated chunks and embeddings."
+            )
 
         index = build_faiss_index(embeddings)
 
@@ -57,5 +79,20 @@ async def upload_pdf(file: UploadFile = File(...)) -> UploadAndIndexResponse:
     except PDFExtractionError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except DocumentProcessingError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except EmbeddingGenerationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    except VectorStoreError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         ) from exc
